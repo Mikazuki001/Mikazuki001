@@ -8,10 +8,9 @@ var drawnPoints = [];
 var markers = [];
 var polyline = null;
 var distanceMarkers = [];
-var infoBox = null;
+var elevationChart = null;
 
-// คลิกเพื่อเพิ่มจุดบนแผนที่
-map.on('click', function(e) {
+map.on('click', function (e) {
     var latlng = e.latlng;
     drawnPoints.push(latlng);
 
@@ -23,7 +22,7 @@ map.on('click', function(e) {
 
     getElevation(lat, lng, marker);
 
-    marker.on('dragend', function(e) {
+    marker.on('dragend', function (e) {
         var newLatLng = e.target.getLatLng();
         var index = markers.indexOf(marker);
         if (index !== -1) {
@@ -37,7 +36,6 @@ map.on('click', function(e) {
     drawPolyline();
 });
 
-// คำนวณระยะทางรวม
 function calculateTotalDistance() {
     var totalDistance = 0;
     for (var i = 0; i < drawnPoints.length - 1; i++) {
@@ -46,13 +44,12 @@ function calculateTotalDistance() {
     return totalDistance.toFixed(2);
 }
 
-// วาดเส้นเชื่อมจุดและแสดงระยะทางระหว่างแต่ละจุด
 function drawPolyline() {
     if (polyline) {
         map.removeLayer(polyline);
     }
-    
-    distanceMarkers.forEach(function(marker) {
+
+    distanceMarkers.forEach(function (marker) {
         map.removeLayer(marker);
     });
     distanceMarkers = [];
@@ -70,7 +67,7 @@ function drawPolyline() {
             var distanceMarker = L.marker(midPoint, {
                 icon: L.divIcon({
                     className: 'distance-label',
-                    html: `<span>${distance} m</span>`,
+                    html: `<span>${distance} ม.</span>`,
                     iconSize: [100, 30]
                 })
             }).addTo(map);
@@ -78,82 +75,194 @@ function drawPolyline() {
             distanceMarkers.push(distanceMarker);
         }
 
-        updateInfoBox(); // อัพเดตกล่องข้อความระยะทางรวม
+        updateInfoBox();
+        updateElevationChart();
     }
 }
 
-// ฟังก์ชันขอข้อมูลความสูงจาก API
 function getElevation(lat, lng, marker) {
-    var requestOptions = {
-        method: 'GET',
-        redirect: 'follow'
-    };
-
-    fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`, requestOptions)
+    fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`)
         .then(response => response.json())
         .then(result => {
             var elevation = result.results[0].elevation;
-            marker.bindPopup(`Latitude: ${lat}<br>Longitude: ${lng}<br>Elevation: ${elevation} meters`).openPopup();
+            marker.bindPopup(`ละติจูด: ${lat}<br>ลองจิจูด: ${lng}<br>ความสูง: ${elevation} เมตร`).openPopup();
+            updateElevationChart();
         })
-        .catch(error => console.error('Error fetching elevation data:', error));
+        .catch(error => console.error('เกิดข้อผิดพลาดในการดึงข้อมูลความสูง:', error));
 }
 
-// อัพเดตกล่องข้อความระยะทางรวม
 function updateInfoBox() {
     var totalDistance = calculateTotalDistance();
     var infoBox = document.getElementById('infoBox');
     if (infoBox) {
-        infoBox.textContent = `Total Distance: ${totalDistance} meters`;
+        infoBox.textContent = `ระยะทางรวม: ${totalDistance} เมตร`;
     }
 }
 
-// แสดง/ซ่อนกล่องข้อความระยะทางรวม
 function toggleInfoBox() {
     var container = document.getElementById('infoBoxContainer');
-    if (container.style.display === 'none' || container.style.display === '') {
-        container.style.display = 'block';
-        updateInfoBox(); // อัพเดตข้อมูลเมื่อแสดง
-    } else {
-        container.style.display = 'none';
+    container.style.display = container.style.display === 'none' ? 'block' : 'none';
+}
+
+function initElevationChart() {
+    var ctx = document.getElementById('elevationChart').getContext('2d');
+    elevationChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'ความสูง',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'ความสูง (เมตร)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'ระยะทาง (เมตร)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateElevationChart() {
+    if (!elevationChart) {
+        initElevationChart();
+    }
+
+    var distances = [0];
+    var elevations = [];
+    var totalDistance = 0;
+
+    for (var i = 0; i < drawnPoints.length; i++) {
+        if (i > 0) {
+            totalDistance += drawnPoints[i - 1].distanceTo(drawnPoints[i]);
+        }
+        distances.push(totalDistance);
+        elevations.push(parseFloat(markers[i].getPopup().getContent().split('ความสูง: ')[1].split(' เมตร')[0]));
+    }
+
+    elevationChart.data.labels = distances;
+    elevationChart.data.datasets[0].data = elevations;
+    elevationChart.update();
+}
+
+function toggleElevationProfile() {
+    var container = document.getElementById('elevationProfileContainer');
+    container.style.display = container.style.display === 'none' ? 'block' : 'none';
+    if (container.style.display === 'block') {
+        updateElevationChart();
     }
 }
 
-// ลบจุดทั้งหมด
-document.getElementById('clearBtn').addEventListener('click', function() {
+document.getElementById('clearBtn').addEventListener('click', function () {
     drawnPoints = [];
-    markers.forEach(function(marker) {
+    markers.forEach(function (marker) {
         map.removeLayer(marker);
     });
     markers = [];
     if (polyline) {
         map.removeLayer(polyline);
     }
-    distanceMarkers.forEach(function(marker) {
+    distanceMarkers.forEach(function (marker) {
         map.removeLayer(marker);
     });
     distanceMarkers = [];
-    updateInfoBox(); // อัพเดตกล่องข้อความระยะทางรวม
+    updateInfoBox();
+    if (elevationChart) {
+        elevationChart.data.labels = [];
+        elevationChart.data.datasets[0].data = [];
+        elevationChart.update();
+    }
 });
 
-// ยกเลิกจุดล่าสุด
-document.getElementById('undoBtn').addEventListener('click', function() {
+document.getElementById('undoBtn').addEventListener('click', function () {
     if (drawnPoints.length > 0) {
         drawnPoints.pop();
         var lastMarker = markers.pop();
         map.removeLayer(lastMarker);
         drawPolyline();
+        updateElevationChart();
     }
 });
 
-// ปุ่มสามขีด
-document.getElementById('menuToggle').addEventListener('click', function() {
+document.getElementById('menuToggle').addEventListener('click', function () {
     var menuItems = document.getElementById('menuItems');
-    if (menuItems.style.display === 'none' || menuItems.style.display === '') {
-        menuItems.style.display = 'block';
-    } else {
-        menuItems.style.display = 'none';
-    }
+    menuItems.style.display = menuItems.style.display === 'none' ? 'block' : 'none';
 });
 
-// ปุ่มแสดง/ซ่อนกล่องข้อความระยะทางรวม
 document.getElementById('showDistanceBtn').addEventListener('click', toggleInfoBox);
+document.getElementById('toggleElevationBtn').addEventListener('click', toggleElevationProfile);
+
+initElevationChart();
+
+// ฟังก์ชันสำหรับการส่งออกไฟล์
+document.getElementById('exportJsonBtn').addEventListener('click', function () {
+    const geoData = drawnPoints.map(point => ({
+        lat: point.lat,
+        lng: point.lng
+    }));
+    const json = JSON.stringify(geoData, null, 2);
+    downloadFile('points.json', json, 'application/json');
+});
+
+document.getElementById('exportGpxBtn').addEventListener('click', function () {
+    const gpxHeader = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<gpx version="1.1" creator="Leaflet" xmlns="http://www.topografix.com/GPX/1/1"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.topografix.com/GPX/1/1 
+http://www.topografix.com/GPX/1/1/gpx.xsd">
+<trk>
+<trkseg>
+`;
+
+    let gpxData = '';
+    drawnPoints.forEach(point => {
+        gpxData += `<trkpt lat="${point.lat}" lon="${point.lng}"></trkpt>\n`;
+    });
+
+    const gpxFooter = `</trkseg>
+</trk>
+</gpx>`;
+
+    const gpxContent = gpxHeader + gpxData + gpxFooter;
+    downloadFile('points.gpx', gpxContent, 'application/gpx+xml');
+});
+
+document.getElementById('exportGeoJsonBtn').addEventListener('click', function () {
+    const geoJson = {
+        type: "FeatureCollection",
+        features: drawnPoints.map(point => ({
+            type: "Feature",
+            geometry: {
+                type: "Point",
+                coordinates: [point.lng, point.lat]
+            },
+            properties: {}
+        }))
+    };
+    const json = JSON.stringify(geoJson, null, 2);
+    downloadFile('points.geojson', json, 'application/geo+json');
+});
+
+function downloadFile(filename, content, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+}

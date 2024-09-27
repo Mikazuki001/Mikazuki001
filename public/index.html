@@ -1,31 +1,47 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaflet Map</title>
-    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>แผนที่และกราฟแสดงความสูง</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
-    <div id="map" class="leaflet-map"></div>
-
-    <!-- เมนูสามขีด -->
-    <div id="menuToggle" class="menu">
-        &#9776; <!-- สามขีด -->
-    </div>
-    <div id="menuItems" class="menu-items" style="display: none;">
-        <button id="clearBtn">Clear Points</button>
-        <button id="undoBtn">Undo Point</button>
-        <button id="showDistanceBtn">Show Total Distance</button> <!-- ปุ่มแสดงระยะทางรวม -->
+    <!-- ปุ่มไปที่หน้าแดชบอร์ด -->
+    <div id="centered-buttons">
+        <a href="home.html" class="btn">หน้าหลัก</a>
+        <a href="dashboard.html" class="btn">แดชบอร์ด</a>
     </div>
 
-    <!-- กล่องข้อความแสดงระยะทางรวม -->
+    <div id="map"></div>
+
+    <div id="controls">
+        <button id="menuToggle" class="menu-button">☰</button>
+        <div id="menuItems" class="menu-items" style="display: none;">
+            <button id="clearBtn">ลบจุดทั้งหมด</button>
+            <button id="undoBtn">ยกเลิกจุดล่าสุด</button>
+            <button id="showDistanceBtn">แสดงระยะทางรวม</button>
+            <button id="toggleElevationBtn">แสดง/ซ่อนกราฟความสูง</button>
+            <button id="exportJsonBtn">ส่งออกเป็น JSON</button>
+            <button id="exportGpxBtn">ส่งออกเป็น GPX</button>
+            <button id="exportGeoJsonBtn">ส่งออกเป็น GeoJSON</button>
+        </div>
+    </div>
+
     <div id="infoBoxContainer" class="info-box-container" style="display: none;">
-        <div id="infoBox" class="info-box">Total Distance: 0 meters</div>
+        <div id="infoBox" class="info-box">ระยะทางรวม: 0 เมตร</div>
+    </div>
+
+    <div id="elevationProfileContainer" style="display: none;">
+        <canvas id="elevationChart"></canvas>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>
